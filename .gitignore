@@ -1,0 +1,8 @@
+node_modules/
+dist/
+coverage/
+*.log
+.env
+deploy/widget.env
+conf/instance-id
+conf/forgejo-target.json

@@ -1,0 +1,25 @@
+services:
+  forgejo-ops-widget:
+    image: ${FORGEJO_OPS_WIDGET_REPOSITORY:?set the OCI repository}@sha256:${FORGEJO_OPS_WIDGET_DIGEST:?set the 64-hex manifest digest}
+    restart: unless-stopped
+    init: true
+    env_file:
+      - widget.env
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    volumes:
+      - widget-conf:/app/conf
+    ports:
+      - "${FORGEJO_OPS_WIDGET_PUBLISHED_PORT:-8080}:8080"
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    stop_grace_period: 30s
+    pids_limit: 128
+    mem_limit: 512m
+    cpus: 1.0
+
+volumes:
+  widget-conf:

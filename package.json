@@ -1,0 +1,56 @@
+{
+  "name": "@xtrape/forgejo-ops-widget",
+  "version": "0.8.7",
+  "description": "Governed Forgejo operations published as an Xtrape Service.",
+  "type": "module",
+  "private": true,
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://forgejo.xtrape.com/xtrape-project/forgejo-ops-widget-nodejs.git"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "main": "dist/index.js",
+  "bin": {
+    "forgejo-ops-widget": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "check:runtime": "node scripts/check-runtime-baseline.mjs",
+    "check:catalog": "pnpm build && node scripts/check-catalog.mjs",
+    "typecheck": "tsc -p tsconfig.test.json --noEmit",
+    "lint": "eslint src test",
+    "test": "vitest run",
+    "test:integration:forgejo": "pnpm build && node scripts/forgejo-integration.mjs",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@xtrape/connector": "0.8.5",
+    "@xtrape/contracts": "0.8.13",
+    "@xtrape/forgejo-api": "0.8.0",
+    "ajv": "8.20.0",
+    "ajv-formats": "3.0.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.1",
+    "@secretlint/secretlint-rule-preset-recommend": "13.0.2",
+    "@types/node": "^24.0.0",
+    "eslint": "^9.39.1",
+    "secretlint": "13.0.2",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.46.4",
+    "vitest": "^4.0.14"
+  },
+  "packageManager": "pnpm@10.28.2",
+  "pnpm": {
+    "overrides": {
+      "fast-uri@<3.1.6": "^3.1.6"
+    }
+  },
+  "homepage": "https://forgejo.xtrape.com/xtrape-project/forgejo-ops-widget-nodejs#readme",
+  "bugs": {
+    "url": "https://forgejo.xtrape.com/xtrape-project/forgejo-ops-widget-nodejs/issues"
+  }
+}

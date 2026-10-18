@@ -1,0 +1,75 @@
+name: Forgejo 15 integration
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  forgejo-15:
+    runs-on: dind
+    steps:
+      - name: Checkout
+        uses: https://code.forgejo.org/actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+
+      - name: Build integration image
+        run: docker build --target integration --platform linux/amd64 -t forgejo-ops-widget:integration .
+
+      - name: Exercise governed Actions against Forgejo 15.0.2
+        shell: bash
+        run: |
+          set -euo pipefail
+          NETWORK="forgejo-widget-integration-$GITHUB_RUN_ID"
+          FORGEJO_CONTAINER="forgejo-widget-integration-$GITHUB_RUN_ID"
+          docker network create "$NETWORK" >/dev/null
+          cleanup() {
+            docker container rm -f "$FORGEJO_CONTAINER" >/dev/null 2>&1 || true
+            docker network rm "$NETWORK" >/dev/null 2>&1 || true
+          }
+          diagnose() {
+            docker inspect "$FORGEJO_CONTAINER" --format 'Forgejo state={{json .State}}' >&2 || true
+            docker logs "$FORGEJO_CONTAINER" >&2 || true
+          }
+          finish() {
+            status=$?
+            if [ "$status" -ne 0 ]; then diagnose; fi
+            cleanup
+            exit "$status"
+          }
+          trap finish EXIT
+
+          docker run -d --name "$FORGEJO_CONTAINER" --network "$NETWORK" --network-alias forgejo \
+            -e USER_UID=1000 -e USER_GID=1000 \
+            -e FORGEJO__security__INSTALL_LOCK=true \
+            -e FORGEJO__database__DB_TYPE=sqlite3 \
+            codeberg.org/forgejo/forgejo@sha256:db04c7114b656f896e206ba3873fe8d3a7adf2daa44907037f0274f4ba653fb9 >/dev/null
+
+          docker run --rm --network "$NETWORK" --entrypoint node forgejo-ops-widget:integration --input-type=module -e '
+            const deadline = Date.now() + 90_000;
+            while (true) {
+              try {
+                const response = await fetch(`http://forgejo:3000/api/v1/version`);
+                if (response.ok) break;
+              } catch {}
+              if (Date.now() >= deadline) throw new Error(`Forgejo readiness timed out`);
+              await new Promise((resolve) => setTimeout(resolve, 1_000));
+            }
+          '
+
+          ADMIN_PASSWORD="$(docker run --rm --entrypoint node forgejo-ops-widget:integration \
+            -e 'process.stdout.write(crypto.randomUUID() + crypto.randomUUID())')"
+          docker exec -u git "$FORGEJO_CONTAINER" forgejo admin user create \
+            --username integration-admin --password "$ADMIN_PASSWORD" \
+            --email integration@example.invalid --admin --must-change-password=false >/dev/null
+
+          TOKEN="$(docker run --rm --network "$NETWORK" --entrypoint node \
+            -e ADMIN_PASSWORD="$ADMIN_PASSWORD" \
+            forgejo-ops-widget:integration \
+            -e 'const auth=Buffer.from(`integration-admin:${process.env.ADMIN_PASSWORD}`).toString(`base64`); fetch(`http://forgejo:3000/api/v1/users/integration-admin/tokens`,{method:`POST`,headers:{authorization:`Basic ${auth}`,"content-type":`application/json`},body:JSON.stringify({name:`widget-integration`,scopes:[`all`]})}).then(async r=>{if(!r.ok)throw new Error(`token creation failed: ${r.status}`);process.stdout.write((await r.json()).sha1)})')"
+          [ -n "$TOKEN" ]
+
+          docker run --rm --network "$NETWORK" \
+            -e FORGEJO_INTEGRATION_URL=http://forgejo:3000 \
+            -e FORGEJO_INTEGRATION_TOKEN="$TOKEN" \
+            -e FORGEJO_INTEGRATION_ALLOW_MUTATIONS=disposable-only \
+            forgejo-ops-widget:integration

@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: docker
+    container:
+      image: node:24-bookworm@sha256:5711a0d445a1af54af9589066c646df387d1831a608226f4cd694fc59e745059
+    steps:
+      - name: Checkout
+        uses: https://code.forgejo.org/actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+      - name: Enable pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.28.2 --activate
+      - name: Install from lockfile
+        run: pnpm install --frozen-lockfile
+      - name: Runtime and dependency boundary
+        run: pnpm check:runtime
+      - name: Typecheck
+        run: pnpm typecheck
+      - name: Lint
+        run: pnpm lint
+      - name: Tests
+        run: pnpm test
+      - name: Catalog invariants
+        run: pnpm check:catalog
+
+  dependency-audit:
+    needs: validate
+    runs-on: docker
+    container:
+      image: node:24-bookworm@sha256:5711a0d445a1af54af9589066c646df387d1831a608226f4cd694fc59e745059
+    steps:
+      - name: Checkout
+        uses: https://code.forgejo.org/actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+      - name: Enable pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.28.2 --activate
+      - name: Install from lockfile
+        run: pnpm install --frozen-lockfile
+      - name: Production dependency audit
+        run: pnpm audit --prod --audit-level=high --registry https://registry.npmjs.org/
+      - name: Secret scan
+        run: git ls-files -z | xargs -0 pnpm exec secretlint
+
+  container-build:
+    needs: validate
+    runs-on: dind
+    steps:
+      - name: Checkout
+        uses: https://code.forgejo.org/actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+      - name: Build production image
+        run: docker build --platform linux/amd64 -t forgejo-ops-widget:ci .
+      - name: Verify non-root runtime identity
+        run: test "$(docker run --rm --entrypoint id forgejo-ops-widget:ci -u)" != "0"
