@@ -35,6 +35,9 @@ jobs:
           test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
           git merge-base --is-ancestor "$SOURCE_SHA" origin/main
           corepack enable
+          # Fallback for frozen sources without packageManager; Corepack still
+          # honors an explicit packageManager in the checked-out source.
+          corepack prepare pnpm@10.28.2 --activate
           pnpm install --frozen-lockfile
           for gate in lint typecheck build test; do
             if node -e 'process.exit(JSON.parse(require("fs").readFileSync("package.json")).scripts?.[process.argv[1]] ? 0 : 1)' "$gate"; then
@@ -72,7 +75,7 @@ jobs:
           args=()
           case "$GITHUB_REPOSITORY" in
             */xtrape-platform-ce) args+=(--build-arg "SERVER_CE_VERSION=$VERSION" --build-arg "SERVER_CE_COMMIT=$SOURCE_SHA" --build-arg "SERVER_CE_BUILD_TIME=$BUILD_TIME");;
-            */xtrape-panel-ce) args+=(--build-arg "VITE_PANEL_VERSION=$VERSION" --build-arg "PANEL_VERSION=$VERSION" --build-arg "PANEL_COMMIT=$SOURCE_SHA" --build-arg "PANEL_BUILD_TIME=$BUILD_TIME");;
+            */xtrape-panel-ce) args+=(-f deploy/docker/Dockerfile --build-arg "VITE_PANEL_VERSION=$VERSION" --build-arg "PANEL_VERSION=$VERSION" --build-arg "PANEL_COMMIT=$SOURCE_SHA" --build-arg "PANEL_BUILD_TIME=$BUILD_TIME");;
           esac
           docker buildx build --platform linux/amd64 --load "${args[@]}" \
             --label "org.opencontainers.image.source=https://forgejo.xtrape.com/$GITHUB_REPOSITORY" \
