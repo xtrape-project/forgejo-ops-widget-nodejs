@@ -1,0 +1,10 @@
+{
+  "repo": "forgejo-ops-widget-nodejs",
+  "public_source_sha": "88bdd06d4e3e7d5abe1975ad8295a8b393350b80",
+  "run_id": 11663,
+  "public_digest": "sha256:b6fbc39b2f4c550652d3759d4115cf1d63ba5aaf7d7eca3c1c7bf6ead9c431ef",
+  "candidate_control_sha": "f001398fa8e570e66a1c4c73bf75d79c873ac175",
+  "integration_evidence": "https://forgejo.xtrape.com/xtrape/xtrape-docs/issues/293#issuecomment-49343",
+  "owner_ha": "Owner explicitly accepted this public candidate environment in the release task on 2026-10-19; not inherited from C3.",
+  "owner_ha_evidence": "https://forgejo.xtrape.com/xtrape/xtrape-docs/issues/293#issuecomment-49353"
+}
